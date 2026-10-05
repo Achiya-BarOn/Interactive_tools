@@ -2,8 +2,15 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>אותו וקטור, מקומות שונים</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>נקודה מול וקטור</title>
+<meta name="description" content="כלי אינטראקטיבי להבנת ההבדל בין נקודה לבין וקטור במישור.">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="נקודה מול וקטור">
+<link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   :root{
     --paper:#F7F9FC;
@@ -16,6 +23,7 @@
     --pointA:#2F5DB8;
     --pointB:#B4601A;
     --vec:#0E7466;
+    --mark:#8A3F9E;
     --vec-soft:rgba(14,116,102,.28);
     --diff:#9AA3B2;
     --flash:#FFF1B8;
@@ -33,7 +41,7 @@
   @media (max-width:780px){.layout{grid-template-columns:1fr}}
 
   .board{background:var(--board);border:1px solid var(--grid-strong);border-radius:8px;overflow:hidden}
-  .board svg{display:block;width:100%;height:auto;touch-action:none;user-select:none;-webkit-user-select:none}
+  .board svg{display:block;width:100%;height:auto;touch-action:none;user-select:none;-webkit-user-select:none;cursor:crosshair}
   .board svg:focus{outline:none}
   .board:focus-within{box-shadow:0 0 0 3px rgba(47,93,184,.35)}
 
@@ -56,6 +64,9 @@
   .ptB{fill:var(--pointB)}
   .lblA{fill:var(--pointA);font-size:15px;font-weight:600}
   .lblB{fill:var(--pointB);font-size:15px;font-weight:600}
+  .mark{fill:var(--mark)}
+  .marklbl{fill:var(--mark);font-size:13px;font-weight:600}
+
   .hit{fill:transparent;stroke:none}
   .hit-body{stroke:transparent;stroke-width:26;stroke-linecap:round}
   .grab{cursor:grab}
@@ -74,6 +85,8 @@
   .isA{color:var(--pointA)}
   .isB{color:var(--pointB)}
   .isV{color:var(--vec)}
+  .isM{color:var(--mark)}
+  .none{color:var(--muted);font-size:.95rem}
   .vecbox{border-top:1px solid var(--grid);padding-top:10px}
   .calc{font-size:.98rem;color:var(--muted)}
   .vec{position:relative;font-style:italic;display:inline-block}
@@ -104,14 +117,15 @@
 <body>
 <div class="wrap">
   <h1>אותו וקטור, מקומות שונים</h1>
-  <p class="lead">גררו את החץ ממקום למקום על הלוח ועקבו אחרי המספרים. מה משתנה כשמזיזים את החץ, ומה נשאר קבוע?</p>
+  <p class="lead">גררו את החץ ממקום למקום על הלוח ועקבו אחרי המספרים. מה משתנה כשמזיזים את החץ, ומה נשאר קבוע? לחצו על מקום ריק בלוח כדי לסמן שם נקודה.</p>
 
   <div class="layout">
     <div class="board">
       <svg id="board" viewBox="-340 -260 680 520" tabindex="0" role="application"
-           aria-label="לוח קואורדינטות עם חץ שאפשר לגרור. חיצי המקלדת מזיזים את החץ, ועם Shift הם מזיזים את ראשו.">
+           aria-label="לוח קואורדינטות עם חץ שאפשר לגרור. חיצי המקלדת מזיזים את החץ, ועם Shift הם מזיזים את ראשו. לחיצה על מקום ריק מסמנת נקודה.">
         <g id="grid"></g>
         <g id="copies"></g>
+        <g id="marks"></g>
         <g id="current"></g>
       </svg>
     </div>
@@ -130,16 +144,23 @@
         <span class="math calc" id="calc"></span><br>
         <span class="math isV"><span class="vec">v</span> = (<b id="vx"></b>, <b id="vy"></b>)</span>
       </div>
+      <div class="item vecbox">
+        <span class="name">הנקודות שסימנתם</span>
+        <span class="math isM" id="marklist"></span>
+        <span class="none" id="marknone">עדיין לא סומנו נקודות.</span>
+      </div>
 
       <p class="status" id="status" aria-live="polite"></p>
 
       <div class="buttons">
         <button class="primary" id="stamp">השאר עותק כאן</button>
         <button id="clear">נקה עותקים</button>
+        <button id="clearmarks">נקה נקודות</button>
         <button id="reset">התחל מחדש</button>
       </div>
 
       <ul class="help">
+        <li>לחיצה על מקום ריק בלוח מסמנת שם נקודה. לחיצה נוספת על הנקודה מסירה אותה.</li>
         <li>גרירה מאמצע החץ או מהזנב שלו מזיזה את כל החץ.</li>
         <li>גרירה מראש החץ משנה את הווקטור עצמו.</li>
         <li>מקלדת: החיצים מזיזים את החץ, ו־Shift עם החיצים מזיז את הראש.</li>
@@ -158,7 +179,7 @@
   var XMIN = -8, XMAX = 8, YMIN = -6, YMAX = 6;
   var START = { a:{x:-5, y:-3}, b:{x:-2, y:-1} };
 
-  var state = { a:{x:START.a.x, y:START.a.y}, b:{x:START.b.x, y:START.b.y}, copies:[] };
+  var state = { a:{x:START.a.x, y:START.a.y}, b:{x:START.b.x, y:START.b.y}, copies:[], marks:[] };
   var lastAction = "start";
   var drag = null;
   var NS = "http://www.w3.org/2000/svg";
@@ -166,6 +187,7 @@
   var svg = document.getElementById("board");
   var gGrid = document.getElementById("grid");
   var gCopies = document.getElementById("copies");
+  var gMarks = document.getElementById("marks");
   var gCur = document.getElementById("current");
   var statusEl = document.getElementById("status");
 
@@ -248,6 +270,18 @@
       gCopies.appendChild(el("circle", { cx:px(c.a.x), cy:py(c.a.y), r:3, "class": same ? "same-head" : "diff-head" }));
     });
 
+    // marked points
+    gMarks.textContent = "";
+    state.marks.forEach(function(m){
+      gMarks.appendChild(el("circle", { cx:px(m.x), cy:py(m.y), r:6, "class":"mark" }));
+      gMarks.appendChild(el("text", { x:px(m.x), y:py(m.y) + 20, "text-anchor":"middle", "class":"marklbl" },
+        "(" + fmt(m.x) + ", " + fmt(m.y) + ")"));
+    });
+    document.getElementById("marklist").textContent = state.marks.map(function(m){
+      return "(" + fmt(m.x) + ", " + fmt(m.y) + ")";
+    }).join(",  ");
+    document.getElementById("marknone").hidden = state.marks.length > 0;
+
     // current arrow
     gCur.textContent = "";
     // component legs
@@ -301,6 +335,8 @@
     if (lastAction === "move") msg = "הזזת את החץ: הנקודות A ו־B השתנו, אבל הווקטור נשאר אותו וקטור.";
     else if (lastAction === "head") msg = "שינית את ראש החץ: עכשיו זה וקטור אחר.";
     else if (lastAction === "stamp") msg = "נשאר עותק במקום הזה. עכשיו הזיזו את החץ למקום אחר.";
+    else if (lastAction === "mark") return "סימנת נקודה. נקודה היא מקום קבוע בלוח: היא נשארת במקומה גם כשמזיזים את החץ.";
+    else if (lastAction === "unmark") return "הנקודה הוסרה מהלוח.";
     else msg = "גררו את החץ ממקום למקום ושימו לב אילו מספרים משתנים.";
 
     var n = state.copies.length;
@@ -341,12 +377,24 @@
     return { x: p.x / S, y: -p.y / S };
   }
 
+  function toggleMark(x, y){
+    var m = { x:x, y:y };
+    if (!inBounds(m)) return;
+    for (var i = 0; i < state.marks.length; i++){
+      if (state.marks[i].x === x && state.marks[i].y === y){
+        state.marks.splice(i, 1); lastAction = "unmark"; render(); return;
+      }
+    }
+    state.marks.push(m); lastAction = "mark";
+    render();
+  }
+
   svg.addEventListener("pointerdown", function(evt){
     var part = evt.target.getAttribute && evt.target.getAttribute("data-part");
-    if (!part) return;
     evt.preventDefault();
     svg.focus();
     var w = toWorld(evt);
+    if (!part){ if (!evt.button) toggleMark(Math.round(w.x), Math.round(w.y)); return; }
     drag = { part:part, offX: w.x - state.a.x, offY: w.y - state.a.y, id: evt.pointerId };
     svg.setPointerCapture(evt.pointerId);
     svg.classList.add("grabbing");
@@ -393,15 +441,25 @@
   document.getElementById("clear").addEventListener("click", function(){
     state.copies = []; lastAction = "start"; render();
   });
+  document.getElementById("clearmarks").addEventListener("click", function(){
+    state.marks = []; lastAction = "start"; render();
+  });
   document.getElementById("reset").addEventListener("click", function(){
     state.a = { x:START.a.x, y:START.a.y };
     state.b = { x:START.b.x, y:START.b.y };
-    state.copies = []; lastAction = "start"; prev = {};
+    state.copies = []; state.marks = []; lastAction = "start"; prev = {};
     render();
   });
 
   drawGrid();
   render();
+
+  // ---------- offline / install ----------
+  if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("sw.js").catch(function(){});
+    });
+  }
 })();
 </script>
 </body>
