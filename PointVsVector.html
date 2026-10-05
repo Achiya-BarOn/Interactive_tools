@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>אותו וקטור, מקומות שונים</title>
+<style>
+  :root{
+    --paper:#F7F9FC;
+    --board:#FFFFFF;
+    --grid:#E1E9F3;
+    --grid-strong:#BCCCE0;
+    --axis:#55657E;
+    --ink:#1E2940;
+    --muted:#5C6A80;
+    --pointA:#2F5DB8;
+    --pointB:#B4601A;
+    --vec:#0E7466;
+    --vec-soft:rgba(14,116,102,.28);
+    --diff:#9AA3B2;
+    --flash:#FFF1B8;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Segoe UI","Noto Sans Hebrew","Arial",sans-serif;
+    line-height:1.55;
+  }
+  .wrap{max-width:1020px;margin:0 auto;padding:18px 16px 28px}
+  h1{font-size:1.45rem;font-weight:600;margin:0 0 4px}
+  .lead{margin:0 0 14px;color:var(--muted);max-width:70ch}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:16px;align-items:start}
+  @media (max-width:780px){.layout{grid-template-columns:1fr}}
+
+  .board{background:var(--board);border:1px solid var(--grid-strong);border-radius:8px;overflow:hidden}
+  .board svg{display:block;width:100%;height:auto;touch-action:none;user-select:none;-webkit-user-select:none}
+  .board svg:focus{outline:none}
+  .board:focus-within{box-shadow:0 0 0 3px rgba(47,93,184,.35)}
+
+  svg text{direction:ltr;unicode-bidi:isolate;font-family:"Cambria Math","Times New Roman",serif}
+  .g-line{stroke:var(--grid);stroke-width:1}
+  .g-axis{stroke:var(--axis);stroke-width:1.5}
+  .g-tick{fill:var(--muted);font-size:12px}
+  .g-axislbl{fill:var(--axis);font-size:15px;font-style:italic}
+
+  .cur-shaft{stroke:var(--vec);stroke-width:4;stroke-linecap:round}
+  .cur-head{fill:var(--vec)}
+  .same-shaft{stroke:var(--vec-soft);stroke-width:3;stroke-linecap:round}
+  .same-head{fill:var(--vec-soft)}
+  .diff-shaft{stroke:var(--diff);stroke-width:2.5;stroke-dasharray:6 5;stroke-linecap:round}
+  .diff-head{fill:var(--diff)}
+
+  .leg{stroke:var(--vec);stroke-width:1.5;stroke-dasharray:4 4;fill:none;opacity:.75}
+  .leglbl{fill:var(--vec);font-size:13px}
+  .ptA{fill:var(--pointA)}
+  .ptB{fill:var(--pointB)}
+  .lblA{fill:var(--pointA);font-size:15px;font-weight:600}
+  .lblB{fill:var(--pointB);font-size:15px;font-weight:600}
+  .hit{fill:transparent;stroke:none}
+  .hit-body{stroke:transparent;stroke-width:26;stroke-linecap:round}
+  .grab{cursor:grab}
+  .grabbing .grab{cursor:grabbing}
+
+  .panel{background:var(--board);border:1px solid var(--grid-strong);border-radius:8px;padding:14px}
+  .item{margin:0 0 12px}
+  .item:last-of-type{margin-bottom:6px}
+  .name{display:block;font-size:.88rem;color:var(--muted)}
+  .math{
+    display:inline-block;direction:ltr;unicode-bidi:isolate;
+    font-family:"Cambria Math","Times New Roman",serif;font-size:1.15rem;
+  }
+  .math b{font-weight:600;padding:0 2px;border-radius:3px;transition:background-color .6s}
+  .math b.changed{background:var(--flash);transition:none}
+  .isA{color:var(--pointA)}
+  .isB{color:var(--pointB)}
+  .isV{color:var(--vec)}
+  .vecbox{border-top:1px solid var(--grid);padding-top:10px}
+  .calc{font-size:.98rem;color:var(--muted)}
+  .vec{position:relative;font-style:italic;display:inline-block}
+  .vec::after{
+    content:"\2192";position:absolute;top:-.78em;left:50%;transform:translateX(-50%);
+    font-size:.7em;font-style:normal;
+  }
+  .status{
+    margin:12px 0;padding:8px 10px;border-radius:6px;background:#EEF4F2;
+    color:var(--ink);font-size:.95rem;min-height:3.2em;
+  }
+  .buttons{display:flex;flex-wrap:wrap;gap:8px}
+  button{
+    font:inherit;font-size:.93rem;padding:7px 12px;border-radius:6px;cursor:pointer;
+    border:1px solid var(--grid-strong);background:#fff;color:var(--ink);
+  }
+  button.primary{background:var(--vec);border-color:var(--vec);color:#fff}
+  button:hover{filter:brightness(.96)}
+  button:focus-visible{outline:3px solid rgba(47,93,184,.45);outline-offset:2px}
+
+  .help{margin:14px 0 0;padding:0 18px 0 0;color:var(--muted);font-size:.9rem}
+  .help li{margin-bottom:4px}
+  .question{margin:16px 0 0;max-width:75ch}
+  .question strong{font-weight:600}
+  @media (prefers-reduced-motion:reduce){.math b{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>אותו וקטור, מקומות שונים</h1>
+  <p class="lead">גררו את החץ ממקום למקום על הלוח ועקבו אחרי המספרים. מה משתנה כשמזיזים את החץ, ומה נשאר קבוע?</p>
+
+  <div class="layout">
+    <div class="board">
+      <svg id="board" viewBox="-340 -260 680 520" tabindex="0" role="application"
+           aria-label="לוח קואורדינטות עם חץ שאפשר לגרור. חיצי המקלדת מזיזים את החץ, ועם Shift הם מזיזים את ראשו.">
+        <g id="grid"></g>
+        <g id="copies"></g>
+        <g id="current"></g>
+      </svg>
+    </div>
+
+    <div class="panel">
+      <div class="item">
+        <span class="name">נקודת ההתחלה (זנב החץ)</span>
+        <span class="math isA">A = (<b id="ax"></b>, <b id="ay"></b>)</span>
+      </div>
+      <div class="item">
+        <span class="name">נקודת הסיום (ראש החץ)</span>
+        <span class="math isB">B = (<b id="bx"></b>, <b id="by"></b>)</span>
+      </div>
+      <div class="item vecbox">
+        <span class="name">הווקטור שהחץ מייצג</span>
+        <span class="math calc" id="calc"></span><br>
+        <span class="math isV"><span class="vec">v</span> = (<b id="vx"></b>, <b id="vy"></b>)</span>
+      </div>
+
+      <p class="status" id="status" aria-live="polite"></p>
+
+      <div class="buttons">
+        <button class="primary" id="stamp">השאר עותק כאן</button>
+        <button id="clear">נקה עותקים</button>
+        <button id="reset">התחל מחדש</button>
+      </div>
+
+      <ul class="help">
+        <li>גרירה מאמצע החץ או מהזנב שלו מזיזה את כל החץ.</li>
+        <li>גרירה מראש החץ משנה את הווקטור עצמו.</li>
+        <li>מקלדת: החיצים מזיזים את החץ, ו־Shift עם החיצים מזיז את הראש.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="question"><strong>שאלה למחשבה:</strong> שני חצים מייצגים את אותו וקטור. מה חייב להתקיים בין נקודות ההתחלה והסיום שלהם?</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var S = 40;                       // pixels per unit
+  var XMIN = -8, XMAX = 8, YMIN = -6, YMAX = 6;
+  var START = { a:{x:-5, y:-3}, b:{x:-2, y:-1} };
+
+  var state = { a:{x:START.a.x, y:START.a.y}, b:{x:START.b.x, y:START.b.y}, copies:[] };
+  var lastAction = "start";
+  var drag = null;
+  var NS = "http://www.w3.org/2000/svg";
+
+  var svg = document.getElementById("board");
+  var gGrid = document.getElementById("grid");
+  var gCopies = document.getElementById("copies");
+  var gCur = document.getElementById("current");
+  var statusEl = document.getElementById("status");
+
+  // ---------- helpers ----------
+  function px(x){ return x * S; }
+  function py(y){ return -y * S; }
+  function fmt(n){ return n < 0 ? "\u2212" + Math.abs(n) : String(n); }
+  function par(n){ return n < 0 ? "(" + fmt(n) + ")" : fmt(n); }
+  function vecOf(a, b){ return { x:b.x - a.x, y:b.y - a.y }; }
+  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+  function inBounds(p){ return p.x >= XMIN && p.x <= XMAX && p.y >= YMIN && p.y <= YMAX; }
+
+  function el(tag, attrs, text){
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  // ---------- static grid ----------
+  function drawGrid(){
+    for (var x = XMIN; x <= XMAX; x++){
+      gGrid.appendChild(el("line", { x1:px(x), y1:py(YMIN), x2:px(x), y2:py(YMAX), "class": x === 0 ? "g-axis" : "g-line" }));
+      if (x !== 0 && x % 2 === 0)
+        gGrid.appendChild(el("text", { x:px(x), y:16, "text-anchor":"middle", "class":"g-tick" }, fmt(x)));
+    }
+    for (var y = YMIN; y <= YMAX; y++){
+      gGrid.appendChild(el("line", { x1:px(XMIN), y1:py(y), x2:px(XMAX), y2:py(y), "class": y === 0 ? "g-axis" : "g-line" }));
+      if (y !== 0 && y % 2 === 0)
+        gGrid.appendChild(el("text", { x:-6, y:py(y) + 4, "text-anchor":"end", "class":"g-tick" }, fmt(y)));
+    }
+    gGrid.appendChild(el("text", { x:px(XMAX) + 10, y:5, "class":"g-axislbl" }, "x"));
+    gGrid.appendChild(el("text", { x:6, y:py(YMAX) - 6, "class":"g-axislbl" }, "y"));
+  }
+
+  // ---------- arrow ----------
+  function drawArrow(parent, a, b, cls){
+    var x1 = px(a.x), y1 = py(a.y), x2 = px(b.x), y2 = py(b.y);
+    var dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
+    var ux = dx / len, uy = dy / len;
+    var h = cls === "cur" ? 16 : 13, w = cls === "cur" ? 8 : 6.5;
+    if (len < h * 1.2){ h = len * 0.6; w = h * 0.5; }
+    var bx = x2 - ux * h, by = y2 - uy * h;
+    parent.appendChild(el("line", { x1:x1, y1:y1, x2:bx, y2:by, "class":cls + "-shaft" }));
+    parent.appendChild(el("polygon", {
+      points: x2 + "," + y2 + " " + (bx - uy * w) + "," + (by + ux * w) + " " + (bx + uy * w) + "," + (by - ux * w),
+      "class": cls + "-head"
+    }));
+    return { ux:ux, uy:uy };
+  }
+
+  function labelPos(x, y){
+    return { x: clamp(x, -300, 300), y: clamp(y, -235, 250) };
+  }
+
+  // ---------- render ----------
+  var prev = {};
+  function setNum(id, value){
+    var e = document.getElementById(id);
+    var t = fmt(value);
+    if (prev[id] !== undefined && prev[id] !== t){
+      e.classList.remove("changed");
+      void e.offsetWidth;            // restart the highlight
+      e.classList.add("changed");
+      setTimeout(function(){ e.classList.remove("changed"); }, 50);
+    }
+    prev[id] = t;
+    e.textContent = t;
+  }
+
+  function render(){
+    var a = state.a, b = state.b, v = vecOf(a, b);
+
+    // copies
+    gCopies.textContent = "";
+    state.copies.forEach(function(c){
+      var cv = vecOf(c.a, c.b);
+      var same = cv.x === v.x && cv.y === v.y;
+      drawArrow(gCopies, c.a, c.b, same ? "same" : "diff");
+      gCopies.appendChild(el("circle", { cx:px(c.a.x), cy:py(c.a.y), r:3, "class": same ? "same-head" : "diff-head" }));
+    });
+
+    // current arrow
+    gCur.textContent = "";
+    // component legs
+    if (v.x !== 0 && v.y !== 0){
+      gCur.appendChild(el("polyline", {
+        points: px(a.x) + "," + py(a.y) + " " + px(b.x) + "," + py(a.y) + " " + px(b.x) + "," + py(b.y),
+        "class":"leg"
+      }));
+    }
+    if (v.x !== 0){
+      gCur.appendChild(el("text", {
+        x: px((a.x + b.x) / 2), y: py(a.y) + (v.y > 0 ? 18 : -8),
+        "text-anchor":"middle", "class":"leglbl"
+      }, "\u0394x = " + fmt(v.x)));
+    }
+    if (v.y !== 0){
+      gCur.appendChild(el("text", {
+        x: px(b.x) + (v.x >= 0 ? 8 : -8), y: py((a.y + b.y) / 2) + 4,
+        "text-anchor": v.x >= 0 ? "start" : "end", "class":"leglbl"
+      }, "\u0394y = " + fmt(v.y)));
+    }
+
+    var u = drawArrow(gCur, a, b, "cur");
+    gCur.appendChild(el("circle", { cx:px(a.x), cy:py(a.y), r:6, "class":"ptA" }));
+    gCur.appendChild(el("circle", { cx:px(b.x) + u.ux * 2, cy:py(b.y) + u.uy * 2, r:4.5, "class":"ptB" }));
+
+    var la = labelPos(px(a.x) - u.ux * 26, py(a.y) - u.uy * 26 + 5);
+    gCur.appendChild(el("text", { x:la.x, y:la.y, "text-anchor":"middle", "class":"lblA" },
+      "A(" + fmt(a.x) + ", " + fmt(a.y) + ")"));
+    var lb = labelPos(px(b.x) + u.ux * 28, py(b.y) + u.uy * 28 + 5);
+    gCur.appendChild(el("text", { x:lb.x, y:lb.y, "text-anchor":"middle", "class":"lblB" },
+      "B(" + fmt(b.x) + ", " + fmt(b.y) + ")"));
+
+    // invisible grab areas (on top)
+    gCur.appendChild(el("line", { x1:px(a.x), y1:py(a.y), x2:px(b.x), y2:py(b.y), "class":"hit-body grab", "data-part":"body" }));
+    gCur.appendChild(el("circle", { cx:px(a.x), cy:py(a.y), r:16, "class":"hit grab", "data-part":"body" }));
+    gCur.appendChild(el("circle", { cx:px(b.x), cy:py(b.y), r:18, "class":"hit grab", "data-part":"head" }));
+
+    // panel
+    setNum("ax", a.x); setNum("ay", a.y);
+    setNum("bx", b.x); setNum("by", b.y);
+    setNum("vx", v.x); setNum("vy", v.y);
+    document.getElementById("calc").textContent =
+      "B \u2212 A = (" + fmt(b.x) + " \u2212 " + par(a.x) + ", " + fmt(b.y) + " \u2212 " + par(a.y) + ")";
+
+    statusEl.textContent = statusText(v);
+  }
+
+  function statusText(v){
+    var msg;
+    if (lastAction === "move") msg = "הזזת את החץ: הנקודות A ו־B השתנו, אבל הווקטור נשאר אותו וקטור.";
+    else if (lastAction === "head") msg = "שינית את ראש החץ: עכשיו זה וקטור אחר.";
+    else if (lastAction === "stamp") msg = "נשאר עותק במקום הזה. עכשיו הזיזו את החץ למקום אחר.";
+    else msg = "גררו את החץ ממקום למקום ושימו לב אילו מספרים משתנים.";
+
+    var n = state.copies.length;
+    if (n > 0){
+      var allSame = state.copies.every(function(c){
+        var cv = vecOf(c.a, c.b); return cv.x === v.x && cv.y === v.y;
+      });
+      var count = n + 1;
+      msg += allSame
+        ? " על הלוח " + count + " חצים, וכולם מייצגים את אותו וקטור."
+        : " שימו לב: החצים האפורים המקווקווים כבר לא מייצגים את אותו וקטור כמו החץ הנוכחי.";
+    }
+    return msg;
+  }
+
+  // ---------- moving ----------
+  function tryMove(nax, nay){
+    var v = vecOf(state.a, state.b);
+    var na = { x:nax, y:nay }, nb = { x:nax + v.x, y:nay + v.y };
+    if (!inBounds(na) || !inBounds(nb)) return false;
+    if (na.x === state.a.x && na.y === state.a.y) return false;
+    state.a = na; state.b = nb; lastAction = "move";
+    return true;
+  }
+  function tryHead(nbx, nby){
+    var nb = { x:nbx, y:nby };
+    if (!inBounds(nb)) return false;
+    if (nb.x === state.a.x && nb.y === state.a.y) return false;
+    if (nb.x === state.b.x && nb.y === state.b.y) return false;
+    state.b = nb; lastAction = "head";
+    return true;
+  }
+
+  function toWorld(evt){
+    var pt = svg.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    var p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    return { x: p.x / S, y: -p.y / S };
+  }
+
+  svg.addEventListener("pointerdown", function(evt){
+    var part = evt.target.getAttribute && evt.target.getAttribute("data-part");
+    if (!part) return;
+    evt.preventDefault();
+    svg.focus();
+    var w = toWorld(evt);
+    drag = { part:part, offX: w.x - state.a.x, offY: w.y - state.a.y, id: evt.pointerId };
+    svg.setPointerCapture(evt.pointerId);
+    svg.classList.add("grabbing");
+  });
+
+  svg.addEventListener("pointermove", function(evt){
+    if (!drag || evt.pointerId !== drag.id) return;
+    var w = toWorld(evt);
+    var changed = drag.part === "head"
+      ? tryHead(Math.round(w.x), Math.round(w.y))
+      : tryMove(Math.round(w.x - drag.offX), Math.round(w.y - drag.offY));
+    if (changed) render();
+  });
+
+  function endDrag(evt){
+    if (!drag || evt.pointerId !== drag.id) return;
+    drag = null;
+    svg.classList.remove("grabbing");
+  }
+  svg.addEventListener("pointerup", endDrag);
+  svg.addEventListener("pointercancel", endDrag);
+
+  svg.addEventListener("keydown", function(evt){
+    var d = { ArrowRight:[1,0], ArrowLeft:[-1,0], ArrowUp:[0,1], ArrowDown:[0,-1] }[evt.key];
+    if (!d) return;
+    evt.preventDefault();
+    var changed = evt.shiftKey
+      ? tryHead(state.b.x + d[0], state.b.y + d[1])
+      : tryMove(state.a.x + d[0], state.a.y + d[1]);
+    if (changed) render();
+  });
+
+  // ---------- buttons ----------
+  document.getElementById("stamp").addEventListener("click", function(){
+    var exists = state.copies.some(function(c){
+      return c.a.x === state.a.x && c.a.y === state.a.y && c.b.x === state.b.x && c.b.y === state.b.y;
+    });
+    if (!exists){
+      state.copies.push({ a:{x:state.a.x, y:state.a.y}, b:{x:state.b.x, y:state.b.y} });
+    }
+    lastAction = "stamp";
+    render();
+  });
+  document.getElementById("clear").addEventListener("click", function(){
+    state.copies = []; lastAction = "start"; render();
+  });
+  document.getElementById("reset").addEventListener("click", function(){
+    state.a = { x:START.a.x, y:START.a.y };
+    state.b = { x:START.b.x, y:START.b.y };
+    state.copies = []; lastAction = "start"; prev = {};
+    render();
+  });
+
+  drawGrid();
+  render();
+})();
+</script>
+</body>
+</html>
