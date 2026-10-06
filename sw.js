@@ -1,7 +1,7 @@
 // Network first, so an online visit always gets the latest version;
 // the cache is only the fallback that lets the app open offline.
-var CACHE = "point-vs-vector-v1";
-var FILES = ["PointVsVector.html", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
+var CACHE = "point-vs-vector-v2";
+var FILES = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", function(evt){
   evt.waitUntil(caches.open(CACHE).then(function(c){ return c.addAll(FILES); }));

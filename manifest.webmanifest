@@ -4,7 +4,7 @@
   "description": "כלי אינטראקטיבי להבנת ההבדל בין נקודה לבין וקטור במישור.",
   "lang": "he",
   "dir": "rtl",
-  "start_url": "PointVsVector.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#F7F9FC",
